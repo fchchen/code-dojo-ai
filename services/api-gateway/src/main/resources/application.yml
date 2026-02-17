@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+app:
+  jwt:
+    secret: CodeDojoAiSuperSecretKeyForJwtSigning2026
+    expiration-seconds: 3600
+  services:
+    coach-agent-url: http://coach-agent:8000
+    ml-analyzer-url: http://ml-analyzer:8001
