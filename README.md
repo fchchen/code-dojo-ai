@@ -9,11 +9,12 @@ Portfolio demo with four services:
 ## Demo
 - Live flow: demo auth -> code submit -> streamed agent trace -> persisted history.
 - API examples: `docs/contracts.md`.
-- Suggested portfolio assets:
-  - `docs/assets/ui-submit.png`
-  - `docs/assets/ui-streaming.png`
-  - `docs/assets/ui-history.png`
-  - `docs/assets/demo-flow.gif`
+
+### UI Screenshots
+![Login](docs/assets/ui-login.png)
+![Submit](docs/assets/ui-submit.png)
+![Streaming Trace](docs/assets/ui-streaming.png)
+![History](docs/assets/ui-history.png)
 
 ## Architecture
 ```mermaid
