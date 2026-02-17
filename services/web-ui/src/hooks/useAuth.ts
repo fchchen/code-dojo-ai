@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { getDemoToken } from "../api/client";
+import { useEffect, useMemo, useState } from "react";
+import { AUTH_UNAUTHORIZED_EVENT, getDemoToken } from "../api/client";
 
 const TOKEN_KEY = "code-dojo-token";
 const USERNAME_KEY = "code-dojo-username";
@@ -11,6 +11,21 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = useMemo(() => Boolean(token), [token]);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USERNAME_KEY);
+      setToken(null);
+      setUsername(null);
+      setError("Session expired. Please sign in again.");
+    }
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => {
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    };
+  }, []);
 
   async function login(nextUsername: string) {
     setLoading(true);

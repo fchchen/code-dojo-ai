@@ -14,6 +14,8 @@ management:
 app:
   auth:
     demo-rate-limit-per-minute: 30
+    trust-forwarded-headers: false
+    trusted-proxies: 127.0.0.1,::1
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-seconds: 3600

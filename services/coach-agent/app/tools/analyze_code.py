@@ -40,19 +40,25 @@ async def analyze_code_quality(settings: Settings, code: str, language: str | No
     summary = "ML summarizer unavailable; generated fallback summary."
     comments: list[str] = []
 
-    try:
-        summary_resp = await client.post(f"{base_url}/api/analyze/summarize", json=payload)
-        summary_resp.raise_for_status()
-        summary = summary_resp.json().get("summary") or summary
-    except httpx.HTTPError:
-        pass
+    summary_resp, review_resp = await asyncio.gather(
+        client.post(f"{base_url}/api/analyze/summarize", json=payload),
+        client.post(f"{base_url}/api/analyze/review", json=payload),
+        return_exceptions=True,
+    )
 
-    try:
-        review_resp = await client.post(f"{base_url}/api/analyze/review", json=payload)
-        review_resp.raise_for_status()
-        comments = review_resp.json().get("comments") or comments
-    except httpx.HTTPError:
-        pass
+    if isinstance(summary_resp, httpx.Response):
+        try:
+            summary_resp.raise_for_status()
+            summary = summary_resp.json().get("summary") or summary
+        except httpx.HTTPError:
+            pass
+
+    if isinstance(review_resp, httpx.Response):
+        try:
+            review_resp.raise_for_status()
+            comments = review_resp.json().get("comments") or comments
+        except httpx.HTTPError:
+            pass
 
     if not comments:
         comments = ["Unable to fetch detailed review comments; focus on readability and tests."]

@@ -7,6 +7,21 @@ import type {
 } from "../types";
 
 const API_BASE = "/api";
+export const AUTH_UNAUTHORIZED_EVENT = "code-dojo:unauthorized";
+
+function emitUnauthorized() {
+  window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+}
+
+function assertOk(response: Response, context: string) {
+  if (response.status === 401) {
+    emitUnauthorized();
+    throw new Error("Session expired (401). Please sign in again.");
+  }
+  if (!response.ok) {
+    throw new Error(`${context} (${response.status})`);
+  }
+}
 
 function authHeaders(token?: string): HeadersInit {
   if (!token) {
@@ -25,9 +40,7 @@ export async function getDemoToken(username: string): Promise<AuthResponse> {
     body: JSON.stringify({ username }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Auth failed (${response.status})`);
-  }
+  assertOk(response, "Auth failed");
 
   return response.json();
 }
@@ -39,9 +52,7 @@ export async function submitCode(token: string, payload: SubmissionRequest): Pro
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(`Submission failed (${response.status})`);
-  }
+  assertOk(response, "Submission failed");
 
   return response.json();
 }
@@ -50,9 +61,7 @@ export async function getSubmission(token: string, id: string): Promise<Submissi
   const response = await fetch(`${API_BASE}/submissions/${id}`, {
     headers: authHeaders(token),
   });
-  if (!response.ok) {
-    throw new Error(`Fetch submission failed (${response.status})`);
-  }
+  assertOk(response, "Fetch submission failed");
   return response.json();
 }
 
@@ -64,9 +73,7 @@ export async function listSubmissions(
   const response = await fetch(`${API_BASE}/submissions?page=${page}&pageSize=${pageSize}`, {
     headers: authHeaders(token),
   });
-  if (!response.ok) {
-    throw new Error(`List submissions failed (${response.status})`);
-  }
+  assertOk(response, "List submissions failed");
   return response.json();
 }
 
@@ -83,7 +90,10 @@ export async function streamSubmission(
     signal,
   });
 
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
+    assertOk(response, "Stream failed");
+  }
+  if (!response.body) {
     throw new Error(`Stream failed (${response.status})`);
   }
 

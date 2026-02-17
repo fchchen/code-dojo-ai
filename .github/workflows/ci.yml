@@ -81,4 +81,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Docker Compose Build
+        env:
+          APP_JWT_SECRET: CiBuildSecretKeyForJwtSigning_AtLeast32Chars
         run: docker compose build

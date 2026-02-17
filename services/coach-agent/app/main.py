@@ -33,21 +33,26 @@ async def lifespan(app: FastAPI):
     await repository.close()
 
 
-settings = get_settings()
-app = FastAPI(title="Code Dojo AI - Coach Agent", version="0.1.0", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(submissions.router)
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
-
-
-@app.get("/health")
 async def health() -> dict:
     return {"status": "healthy"}
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title="Code Dojo AI - Coach Agent", version="0.1.0", lifespan=lifespan)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    app.include_router(submissions.router)
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
+    app.get("/health")(health)
+    return app
+
+
+app = create_app()

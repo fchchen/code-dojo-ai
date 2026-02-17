@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.Map;
@@ -13,10 +14,12 @@ import java.util.Map;
         classes = GatewayApplication.class,
         properties = {
                 "app.jwt.secret=UnitTestSecretKeyForJwtSigning_AtLeast32Chars",
-                "app.auth.demo-rate-limit-per-minute=1"
+                "app.auth.demo-rate-limit-per-minute=1",
+                "app.auth.trust-forwarded-headers=true"
         }
 )
 @AutoConfigureWebTestClient
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class AuthControllerTest {
     @Autowired
     private WebTestClient webTestClient;
