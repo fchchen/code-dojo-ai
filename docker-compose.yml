@@ -1,0 +1,65 @@
+services:
+  ml-analyzer:
+    build: ./services/ml-analyzer
+    container_name: ml-analyzer
+    ports:
+      - "8001:8001"
+
+  coach-agent:
+    build: ./services/coach-agent
+    container_name: coach-agent
+    environment:
+      COACH_ML_ANALYZER_URL: http://ml-analyzer:8001
+      COACH_SQLITE_PATH: /data/coach_agent.db
+      COACH_GEMINI_API_KEY: ""
+    volumes:
+      - coach-agent-data:/data
+    depends_on:
+      ml-analyzer:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    environment:
+      APP_SERVICES_COACH_AGENT_URL: http://coach-agent:8000
+      APP_SERVICES_ML_ANALYZER_URL: http://ml-analyzer:8001
+      APP_JWT_SECRET: CodeDojoAiSuperSecretKeyForJwtSigning2026
+      APP_JWT_EXPIRATION_SECONDS: 3600
+    depends_on:
+      coach-agent:
+        condition: service_started
+      ml-analyzer:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+  web-ui:
+    build: ./services/web-ui
+    container_name: web-ui
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "80:80"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      ml-analyzer:
+        condition: service_started
+      coach-agent:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+    ports:
+      - "9090:9090"
+
+volumes:
+  coach-agent-data:
