@@ -6,6 +6,27 @@ Portfolio demo with four services:
 - `services/api-gateway` (Spring Boot WebFlux + JWT)
 - `services/web-ui` (React + Vite)
 
+## Demo
+- Live flow: demo auth -> code submit -> streamed agent trace -> persisted history.
+- API examples: `docs/contracts.md`.
+- Suggested portfolio assets:
+  - `docs/assets/ui-submit.png`
+  - `docs/assets/ui-streaming.png`
+  - `docs/assets/ui-history.png`
+  - `docs/assets/demo-flow.gif`
+
+## Architecture
+```mermaid
+flowchart LR
+  UI[Web UI<br/>React + Vite + Nginx] -->|JWT + REST/SSE| GW[API Gateway<br/>Spring WebFlux]
+  GW -->|REST/SSE proxy| CA[Coach Agent<br/>FastAPI]
+  CA -->|summarize/review| MLA[ML Analyzer<br/>FastAPI + HF]
+  CA -->|persist submissions| DB[(SQLite)]
+  PROM[Prometheus] --> MLA
+  PROM --> CA
+  PROM --> GW
+```
+
 ## Prerequisites
 - Python 3.12+
 - Node 22+

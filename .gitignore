@@ -32,6 +32,8 @@ dist/
 # Environment
 .env
 *.env.local
+*.tsbuildinfo
+services/coach-agent/tests/*.db
 
 # OS
 .DS_Store
