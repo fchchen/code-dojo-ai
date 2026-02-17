@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 import json
 from time import perf_counter
 from uuid import uuid4
@@ -98,20 +99,26 @@ async def create_submission_stream(
 
     async def event_generator():
         ACTIVE_STREAMS.inc()
-        created_event = SSEEvent(
-            event="submission.created",
-            data={"submissionId": submission_id, "status": AgentState.EXECUTING.value},
-        )
-        yield {"event": created_event.event, "data": json.dumps(created_event.data)}
+        try:
+            created_event = SSEEvent(
+                event="submission.created",
+                data={"submissionId": submission_id, "status": AgentState.EXECUTING.value},
+            )
+            yield {"event": created_event.event, "data": json.dumps(created_event.data)}
 
-        while True:
-            event_name, data = await queue.get()
-            if event_name == "done":
-                break
-            yield {"event": event_name, "data": json.dumps(data or {})}
-
-        ACTIVE_STREAMS.dec()
-        await task
+            while True:
+                event_name, data = await queue.get()
+                if event_name == "done":
+                    break
+                yield {"event": event_name, "data": json.dumps(data or {})}
+        finally:
+            ACTIVE_STREAMS.dec()
+            if task.done():
+                await task
+            else:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
     return EventSourceResponse(event_generator())
 

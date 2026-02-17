@@ -1,11 +1,26 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from app.models.embedder import embed
-from app.models.reviewer import review
-from app.models.summarizer import summarize
-
 router = APIRouter(prefix="/api/analyze", tags=["analyze"])
+
+
+def _summarize_fn():
+    from app.models.summarizer import summarize
+
+    return summarize
+
+
+def _review_fn():
+    from app.models.reviewer import review
+
+    return review
+
+
+def _embed_fn():
+    from app.models.embedder import embed
+
+    return embed
 
 
 class CodeRequest(BaseModel):
@@ -36,24 +51,24 @@ class EmbedResponse(BaseModel):
 
 
 @router.post("/summarize", response_model=SummarizeResponse)
-def summarize_code(request: CodeRequest) -> SummarizeResponse:
-    result = summarize(request.code)
+async def summarize_code(request: CodeRequest) -> SummarizeResponse:
+    result = await run_in_threadpool(_summarize_fn(), request.code)
     if result.get("error") and result.get("summary") is None:
         raise HTTPException(status_code=503, detail=result["error"])
     return SummarizeResponse(**result)
 
 
 @router.post("/review", response_model=ReviewResponse)
-def review_code(request: CodeRequest) -> ReviewResponse:
-    result = review(request.code)
+async def review_code(request: CodeRequest) -> ReviewResponse:
+    result = await run_in_threadpool(_review_fn(), request.code)
     if result.get("error") and result.get("comments") is None:
         raise HTTPException(status_code=503, detail=result["error"])
     return ReviewResponse(**result)
 
 
 @router.post("/embed", response_model=EmbedResponse)
-def embed_code(request: CodeRequest) -> EmbedResponse:
-    result = embed(request.code)
+async def embed_code(request: CodeRequest) -> EmbedResponse:
+    result = await run_in_threadpool(_embed_fn(), request.code)
     if result.get("error") and result.get("embedding") is None:
         raise HTTPException(status_code=503, detail=result["error"])
     return EmbedResponse(**result)

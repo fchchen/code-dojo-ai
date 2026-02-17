@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "transformers>=4.46.0",
     "torch>=2.5.0",
+    "protobuf>=5.29.0",
     "prometheus-client>=0.21.0",
     "pydantic>=2.10.0",
 ]

@@ -4,10 +4,9 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml .
-RUN uv pip install --system --no-cache -e ".[dev]"
-
-COPY . .
+COPY pyproject.toml uv.lock ./
+COPY app ./app
+RUN uv pip install --system --no-cache .
 
 EXPOSE 8001
 

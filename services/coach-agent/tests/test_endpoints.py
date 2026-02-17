@@ -1,25 +1,69 @@
-import os
-from pathlib import Path
+from datetime import datetime, timezone
 
-from fastapi.testclient import TestClient
+import pytest
 
-os.environ["COACH_SQLITE_PATH"] = str(Path(__file__).parent / "test_coach.db")
-os.environ["COACH_GEMINI_API_KEY"] = ""
-
-from app.main import app  # noqa: E402
+from app.routers import submissions as submissions_router
+from app.schemas import AgentState, CoachingResult, SubmissionRequest, SubmissionResponse
 
 
-def test_health_endpoint():
-    with TestClient(app) as client:
-        resp = client.get("/health")
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "healthy"
+class FakeRepo:
+    def __init__(self):
+        self._submission_id: str | None = None
+        self._result: CoachingResult | None = None
 
+    async def create_submission(self, submission_id: str, username: str, language: str | None, code: str) -> None:
+        self._submission_id = submission_id
 
-def test_post_submission_endpoint():
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/submissions",
-            json={"code": "print('hello')", "language": "python", "username": "demo"},
+    async def add_step(self, submission_id: str, step) -> None:
+        return None
+
+    async def complete_submission(self, submission_id: str, result: CoachingResult) -> None:
+        self._result = result
+
+    async def fail_submission(self, submission_id: str, error: str) -> None:
+        raise AssertionError(f"Unexpected failure: {error}")
+
+    async def get_submission(self, submission_id: str) -> SubmissionResponse | None:
+        if submission_id != self._submission_id or self._result is None:
+            return None
+        now = datetime.now(timezone.utc)
+        return SubmissionResponse(
+            id=submission_id,
+            username="demo",
+            language="python",
+            status=AgentState.COMPLETE,
+            result=self._result,
+            error=None,
+            created_at=now,
+            updated_at=now,
         )
-        assert resp.status_code in (201, 500)
+
+
+class FakeAgent:
+    async def execute(self, request: SubmissionRequest, emit) -> CoachingResult:
+        return CoachingResult(
+            summary="Stub summary",
+            score=88,
+            issues=["Stub issue"],
+            improved_code="print('improved')",
+            best_practices=["Stub practice"],
+            concept_explanation="Stub concept",
+        )
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint():
+    from app.main import health
+
+    response = await health()
+    assert response["status"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_post_submission_endpoint():
+    payload = SubmissionRequest(code="print('hello')", language="python", username="demo")
+    response = await submissions_router.create_submission(payload, repo=FakeRepo(), agent=FakeAgent())
+
+    assert response.status == AgentState.COMPLETE
+    assert response.result is not None
+    assert response.result.summary == "Stub summary"

@@ -1,6 +1,6 @@
 import pytest
 
-from app.agent.loop import CoachAgent
+from app.agent.loop import CoachAgent, TOOL_REGISTRY
 from app.config import Settings
 from app.llm.gemini_client import GeminiClient
 from app.schemas import AgentState, SubmissionRequest
@@ -20,10 +20,10 @@ async def test_agent_loop_completes(monkeypatch):
     async def fake_code(client, code, language, issues):
         return "improved()"
 
-    monkeypatch.setattr("app.agent.loop.analyze_code_quality", fake_analysis)
-    monkeypatch.setattr("app.agent.loop.generate_best_practices", fake_practices)
-    monkeypatch.setattr("app.agent.loop.explain_main_concept", fake_concept)
-    monkeypatch.setattr("app.agent.loop.generate_improved_code", fake_code)
+    monkeypatch.setitem(TOOL_REGISTRY, "analyze_code_quality", fake_analysis)
+    monkeypatch.setitem(TOOL_REGISTRY, "generate_best_practices", fake_practices)
+    monkeypatch.setitem(TOOL_REGISTRY, "explain_main_concept", fake_concept)
+    monkeypatch.setitem(TOOL_REGISTRY, "generate_improved_code", fake_code)
 
     agent = CoachAgent(Settings(), GeminiClient(Settings(gemini_api_key=None)))
     steps = []

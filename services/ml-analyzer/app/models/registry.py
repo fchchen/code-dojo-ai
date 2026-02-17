@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from transformers import AutoModel, AutoTokenizer, T5ForConditionalGeneration
+from transformers import AutoModel, AutoModelForSeq2SeqLM, AutoTokenizer, T5ForConditionalGeneration
 
 from app.monitoring.metrics import MODEL_LOAD_TIME, MODELS_LOADED
 
@@ -46,10 +46,13 @@ class ModelRegistry:
         entry.status = ModelStatus.LOADING
         start = time.time()
         try:
-            if "t5" in entry.model_id.lower() or "codet5" in entry.model_id.lower():
+            task = entry.task.lower()
+            if task in {"embedding", "embed"}:
+                entry.model = AutoModel.from_pretrained(entry.model_id)
+            elif "t5" in entry.model_id.lower() or "codet5" in entry.model_id.lower():
                 entry.model = T5ForConditionalGeneration.from_pretrained(entry.model_id)
             else:
-                entry.model = AutoModel.from_pretrained(entry.model_id)
+                entry.model = AutoModelForSeq2SeqLM.from_pretrained(entry.model_id)
             entry.tokenizer = AutoTokenizer.from_pretrained(entry.model_id)
 
             entry.model.eval()

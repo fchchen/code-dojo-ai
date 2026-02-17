@@ -52,6 +52,21 @@ class TestModelRegistry:
         assert entry.status == ModelStatus.READY
         mock_model_cls.from_pretrained.assert_called_once_with("huggingface/CodeBERTa-small-v1")
 
+    @patch("app.models.registry.AutoModelForSeq2SeqLM")
+    @patch("app.models.registry.AutoTokenizer")
+    def test_load_code_review_model_uses_seq2seq(self, mock_tokenizer_cls, mock_model_cls):
+        mock_model = MagicMock()
+        mock_model_cls.from_pretrained.return_value = mock_model
+        mock_tokenizer_cls.from_pretrained.return_value = MagicMock()
+
+        self.registry.register("review-test", "microsoft/codereviewer", "code-review")
+        self.registry.load("review-test")
+
+        entry = self.registry.get("review-test")
+        assert entry.status == ModelStatus.READY
+        assert entry.model is mock_model
+        mock_model_cls.from_pretrained.assert_called_once_with("microsoft/codereviewer")
+
     @patch("app.models.registry.T5ForConditionalGeneration")
     @patch("app.models.registry.AutoTokenizer")
     def test_load_model_failure_sets_error(self, mock_tokenizer_cls, mock_model_cls):

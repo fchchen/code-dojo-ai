@@ -1,93 +1,75 @@
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 import pytest
-from fastapi.testclient import TestClient
+from fastapi import HTTPException
+from pydantic import ValidationError
+
+from app.main import health
+from app.routers import analyze as analyze_router
+from app.routers import models as models_router
+from app.routers.analyze import CodeRequest
 
 
-@pytest.fixture
-def client():
-    """Create a test client with mocked model loading."""
-    with patch("app.models.registry.registry") as mock_registry:
-        mock_registry.status.return_value = {}
-        mock_registry.all_ready = True
-
-        from app.main import app
-        with TestClient(app) as c:
-            yield c, mock_registry
+@pytest.mark.asyncio
+async def test_health_check_reports_status(monkeypatch):
+    monkeypatch.setattr("app.main.registry", SimpleNamespace(all_ready=True))
+    response = health()
+    assert response == {"status": "healthy", "models_ready": True}
 
 
-class TestHealthEndpoint:
-    def test_health_check(self, client):
-        c, mock_reg = client
-        response = c.get("/health")
-        assert response.status_code == 200
-        assert "status" in response.json()
+def test_model_status_endpoint(monkeypatch):
+    fake_registry = SimpleNamespace(
+        status=lambda: {"codet5-summarizer": {"model_id": "Salesforce/codet5-small", "status": "ready", "error": None}},
+        all_ready=True,
+    )
+    monkeypatch.setattr(models_router, "registry", fake_registry)
+
+    payload = models_router.model_status()
+    assert payload["all_ready"] is True
+    assert "codet5-summarizer" in payload["models"]
 
 
-class TestModelStatusEndpoint:
-    def test_returns_model_status(self, client):
-        c, mock_reg = client
-        mock_reg.status.return_value = {
-            "codet5-summarizer": {"model_id": "Salesforce/codet5-small", "status": "ready", "error": None},
-        }
-        mock_reg.all_ready = True
-        response = c.get("/api/models/status")
-        assert response.status_code == 200
-        data = response.json()
-        assert "models" in data
-        assert data["all_ready"] is True
+@pytest.mark.asyncio
+async def test_summarize_success(monkeypatch):
+    async def fake_run_in_threadpool(_fn, *_args, **_kwargs):
+        return {"summary": "This function adds two numbers", "language": "python", "inference_time_ms": 150.0}
+
+    monkeypatch.setattr(analyze_router, "run_in_threadpool", fake_run_in_threadpool)
+    response = await analyze_router.summarize_code(CodeRequest(code="def add(a, b): return a + b"))
+    assert response.summary == "This function adds two numbers"
 
 
-class TestSummarizeEndpoint:
-    @patch("app.routers.analyze.summarize")
-    def test_summarize_success(self, mock_summarize, client):
-        mock_summarize.return_value = {
-            "summary": "This function adds two numbers",
-            "language": "python",
-            "inference_time_ms": 150.0,
-        }
-        c, _ = client
-        response = c.post("/api/analyze/summarize", json={"code": "def add(a, b): return a + b"})
-        assert response.status_code == 200
-        assert response.json()["summary"] == "This function adds two numbers"
+@pytest.mark.asyncio
+async def test_summarize_model_unavailable(monkeypatch):
+    async def fake_run_in_threadpool(_fn, *_args, **_kwargs):
+        return {"summary": None, "error": "Model not ready: not_loaded"}
 
-    @patch("app.routers.analyze.summarize")
-    def test_summarize_model_unavailable(self, mock_summarize, client):
-        mock_summarize.return_value = {"summary": None, "error": "Model not ready: not_loaded"}
-        c, _ = client
-        response = c.post("/api/analyze/summarize", json={"code": "x = 1"})
-        assert response.status_code == 503
-
-    def test_summarize_empty_code_rejected(self, client):
-        c, _ = client
-        response = c.post("/api/analyze/summarize", json={"code": ""})
-        assert response.status_code == 422
+    monkeypatch.setattr(analyze_router, "run_in_threadpool", fake_run_in_threadpool)
+    with pytest.raises(HTTPException) as exc_info:
+        await analyze_router.summarize_code(CodeRequest(code="x = 1"))
+    assert exc_info.value.status_code == 503
 
 
-class TestReviewEndpoint:
-    @patch("app.routers.analyze.review")
-    def test_review_success(self, mock_review, client):
-        mock_review.return_value = {
-            "comments": ["Consider using a list comprehension"],
-            "language": "python",
-            "inference_time_ms": 200.0,
-        }
-        c, _ = client
-        response = c.post("/api/analyze/review", json={"code": "for i in range(10): pass"})
-        assert response.status_code == 200
-        assert len(response.json()["comments"]) == 1
+def test_summarize_empty_code_rejected():
+    with pytest.raises(ValidationError):
+        CodeRequest(code="")
 
 
-class TestEmbedEndpoint:
-    @patch("app.routers.analyze.embed")
-    def test_embed_success(self, mock_embed, client):
-        mock_embed.return_value = {
-            "embedding": [0.1] * 768,
-            "dimensions": 768,
-            "language": "python",
-            "inference_time_ms": 50.0,
-        }
-        c, _ = client
-        response = c.post("/api/analyze/embed", json={"code": "x = 1"})
-        assert response.status_code == 200
-        assert response.json()["dimensions"] == 768
+@pytest.mark.asyncio
+async def test_review_success(monkeypatch):
+    async def fake_run_in_threadpool(_fn, *_args, **_kwargs):
+        return {"comments": ["Consider using a list comprehension"], "language": "python", "inference_time_ms": 200.0}
+
+    monkeypatch.setattr(analyze_router, "run_in_threadpool", fake_run_in_threadpool)
+    response = await analyze_router.review_code(CodeRequest(code="for i in range(10): pass"))
+    assert len(response.comments or []) == 1
+
+
+@pytest.mark.asyncio
+async def test_embed_success(monkeypatch):
+    async def fake_run_in_threadpool(_fn, *_args, **_kwargs):
+        return {"embedding": [0.1] * 768, "dimensions": 768, "language": "python", "inference_time_ms": 50.0}
+
+    monkeypatch.setattr(analyze_router, "run_in_threadpool", fake_run_in_threadpool)
+    response = await analyze_router.embed_code(CodeRequest(code="x = 1"))
+    assert response.dimensions == 768

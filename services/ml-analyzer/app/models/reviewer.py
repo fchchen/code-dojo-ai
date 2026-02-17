@@ -20,12 +20,11 @@ def review(code: str) -> dict:
         return {"comments": None, "error": f"Model not ready: {entry.status.value}"}
 
     preprocessed = preprocess(code)
+    prompt = f"review code quality issues:\n{preprocessed['code']}"
 
     start = time.time()
     try:
-        inputs = entry.tokenizer(
-            preprocessed["code"], return_tensors="pt", max_length=512, truncation=True
-        )
+        inputs = entry.tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
         with torch.no_grad():
             outputs = entry.model.generate(
                 **inputs, max_new_tokens=256, num_beams=4, early_stopping=True

@@ -1,12 +1,10 @@
+import asyncio
 from collections.abc import Awaitable, Callable
 
 from app.config import Settings
 from app.llm.gemini_client import GeminiClient
 from app.schemas import AgentState, AgentStep, CoachingResult, SubmissionRequest
-from app.tools.analyze_code import analyze_code_quality
-from app.tools.best_practices import generate_best_practices
-from app.tools.explain_concept import explain_main_concept
-from app.tools.generate_example import generate_improved_code
+from app.tools.registry import TOOL_REGISTRY
 
 StepEmitter = Callable[[AgentStep], Awaitable[None]]
 
@@ -18,6 +16,10 @@ class CoachAgent:
 
     async def execute(self, request: SubmissionRequest, emit: StepEmitter) -> CoachingResult:
         context: dict[str, object] = {}
+        analyze_tool = TOOL_REGISTRY["analyze_code_quality"]
+        best_practices_tool = TOOL_REGISTRY["generate_best_practices"]
+        explain_tool = TOOL_REGISTRY["explain_main_concept"]
+        improved_code_tool = TOOL_REGISTRY["generate_improved_code"]
 
         await emit(
             AgentStep(
@@ -33,7 +35,7 @@ class CoachAgent:
                 tool_name="analyze_code_quality",
             )
         )
-        analysis = await analyze_code_quality(self._settings, request.code, request.language)
+        analysis = await analyze_tool(self._settings, request.code, request.language)
         context["analysis"] = analysis
 
         issues = list(analysis.get("issues", []))
@@ -45,8 +47,10 @@ class CoachAgent:
                 message="Generating best practices and concept explanation.",
             )
         )
-        best_practices = await generate_best_practices(self._llm, issues, request.language)
-        concept = await explain_main_concept(self._llm, issues, request.language)
+        best_practices, concept = await asyncio.gather(
+            best_practices_tool(self._llm, issues, request.language),
+            explain_tool(self._llm, issues, request.language),
+        )
 
         await emit(
             AgentStep(
@@ -55,9 +59,9 @@ class CoachAgent:
                 tool_name="generate_improved_code",
             )
         )
-        improved_code = await generate_improved_code(self._llm, request.code, request.language, issues)
+        improved_code = await improved_code_tool(self._llm, request.code, request.language, issues)
 
-        score = max(40, min(95, 90 - (len(issues) * 7)))
+        score = self._score_from_issue_count(len(issues))
         result = CoachingResult(
             summary=summary,
             score=score,
@@ -74,3 +78,13 @@ class CoachAgent:
             )
         )
         return result
+
+    @staticmethod
+    def _score_from_issue_count(issue_count: int) -> int:
+        if issue_count <= 0:
+            return 92
+        if issue_count <= 2:
+            return 82
+        if issue_count <= 4:
+            return 72
+        return 62

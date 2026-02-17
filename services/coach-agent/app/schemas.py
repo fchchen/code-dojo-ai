@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -46,7 +45,7 @@ class CoachingResult(BaseModel):
 
 
 class SubmissionResponse(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
+    id: str
     username: str
     language: str | None = None
     status: AgentState
