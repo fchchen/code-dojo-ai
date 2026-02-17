@@ -9,7 +9,10 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.Map;
 
-@SpringBootTest(classes = GatewayApplication.class)
+@SpringBootTest(
+        classes = GatewayApplication.class,
+        properties = "app.jwt.secret=UnitTestSecretKeyForJwtSigning_AtLeast32Chars"
+)
 @AutoConfigureWebTestClient
 class SubmissionControllerTest {
     @Autowired

@@ -1,6 +1,9 @@
 package com.codedojo.gateway.service;
 
+import com.codedojo.gateway.dto.CoachSubmissionRequest;
+import com.codedojo.gateway.dto.SubmissionListResponse;
 import com.codedojo.gateway.dto.SubmissionRequest;
+import com.codedojo.gateway.dto.SubmissionResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -10,8 +13,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
 public class CoachAgentService {
@@ -21,26 +22,20 @@ public class CoachAgentService {
         this.coachAgentWebClient = coachAgentWebClient;
     }
 
-    public Mono<Map<String, Object>> createSubmission(SubmissionRequest request, String username) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("code", request.code());
-        payload.put("language", request.language());
-        payload.put("username", username);
+    public Mono<SubmissionResponse> createSubmission(SubmissionRequest request, String username) {
+        CoachSubmissionRequest payload = new CoachSubmissionRequest(request.code(), request.language(), username);
 
         return coachAgentWebClient.post()
                 .uri("/api/submissions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .bodyToMono(SubmissionResponse.class)
                 .timeout(Duration.ofSeconds(30));
     }
 
     public Flux<ServerSentEvent<String>> streamSubmission(SubmissionRequest request, String username) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("code", request.code());
-        payload.put("language", request.language());
-        payload.put("username", username);
+        CoachSubmissionRequest payload = new CoachSubmissionRequest(request.code(), request.language(), username);
 
         return coachAgentWebClient.post()
                 .uri("/api/submissions/stream")
@@ -56,15 +51,15 @@ public class CoachAgentService {
                 .timeout(Duration.ofSeconds(45));
     }
 
-    public Mono<Map<String, Object>> getSubmission(String id) {
+    public Mono<SubmissionResponse> getSubmission(String id) {
         return coachAgentWebClient.get()
                 .uri("/api/submissions/{id}", id)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .bodyToMono(SubmissionResponse.class)
                 .timeout(Duration.ofSeconds(15));
     }
 
-    public Mono<Map<String, Object>> listSubmissions(int page, int pageSize) {
+    public Mono<SubmissionListResponse> listSubmissions(int page, int pageSize) {
         return coachAgentWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/submissions")
@@ -72,7 +67,7 @@ public class CoachAgentService {
                         .queryParam("page_size", pageSize)
                         .build())
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .bodyToMono(SubmissionListResponse.class)
                 .timeout(Duration.ofSeconds(15));
     }
 }

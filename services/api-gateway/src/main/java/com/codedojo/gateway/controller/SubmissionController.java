@@ -1,6 +1,8 @@
 package com.codedojo.gateway.controller;
 
+import com.codedojo.gateway.dto.SubmissionListResponse;
 import com.codedojo.gateway.dto.SubmissionRequest;
+import com.codedojo.gateway.dto.SubmissionResponse;
 import com.codedojo.gateway.service.CoachAgentService;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
@@ -16,8 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/submissions")
 public class SubmissionController {
@@ -28,7 +28,7 @@ public class SubmissionController {
     }
 
     @PostMapping
-    public Mono<Map<String, Object>> createSubmission(
+    public Mono<SubmissionResponse> createSubmission(
             @Valid @RequestBody SubmissionRequest request,
             Authentication authentication
     ) {
@@ -44,12 +44,12 @@ public class SubmissionController {
     }
 
     @GetMapping("/{id}")
-    public Mono<Map<String, Object>> getSubmission(@PathVariable String id) {
+    public Mono<SubmissionResponse> getSubmission(@PathVariable String id) {
         return coachAgentService.getSubmission(id);
     }
 
     @GetMapping
-    public Mono<Map<String, Object>> listSubmissions(
+    public Mono<SubmissionListResponse> listSubmissions(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize
     ) {

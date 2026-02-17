@@ -7,7 +7,10 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-@SpringBootTest(classes = GatewayApplication.class)
+@SpringBootTest(
+        classes = GatewayApplication.class,
+        properties = "app.jwt.secret=UnitTestSecretKeyForJwtSigning_AtLeast32Chars"
+)
 @AutoConfigureWebTestClient
 class SecurityConfigTest {
     @Autowired

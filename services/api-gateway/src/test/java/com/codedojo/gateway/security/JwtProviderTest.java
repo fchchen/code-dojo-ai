@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 class JwtProviderTest {
     @Test
     void generatesAndValidatesToken() {
-        JwtProvider provider = new JwtProvider("CodeDojoAiSuperSecretKeyForJwtSigning2026", 3600);
+        JwtProvider provider = new JwtProvider("UnitTestSecretKeyForJwtSigning_AtLeast32Chars", 3600);
         String token = provider.generateToken("demo-user");
 
         var username = provider.validateAndGetUsername(token);
@@ -16,7 +16,7 @@ class JwtProviderTest {
 
     @Test
     void rejectsInvalidToken() {
-        JwtProvider provider = new JwtProvider("CodeDojoAiSuperSecretKeyForJwtSigning2026", 3600);
+        JwtProvider provider = new JwtProvider("UnitTestSecretKeyForJwtSigning_AtLeast32Chars", 3600);
         var username = provider.validateAndGetUsername("invalid.token.value");
         Assertions.assertTrue(username.isEmpty());
     }

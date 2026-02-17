@@ -2,6 +2,20 @@ services:
   ml-analyzer:
     build: ./services/ml-analyzer
     container_name: ml-analyzer
+    environment:
+      ML_CORS_ORIGINS: http://localhost,http://localhost:5173
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,sys,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=4)); sys.exit(0 if data.get('status') == 'healthy' and data.get('models_ready') else 1)",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     ports:
       - "8001:8001"
 
@@ -11,12 +25,25 @@ services:
     environment:
       COACH_ML_ANALYZER_URL: http://ml-analyzer:8001
       COACH_SQLITE_PATH: /data/coach_agent.db
+      COACH_CORS_ORIGINS: http://localhost,http://localhost:5173
       COACH_GEMINI_API_KEY: ""
     volumes:
       - coach-agent-data:/data
     depends_on:
       ml-analyzer:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     ports:
       - "8000:8000"
 
@@ -26,13 +53,19 @@ services:
     environment:
       APP_SERVICES_COACH_AGENT_URL: http://coach-agent:8000
       APP_SERVICES_ML_ANALYZER_URL: http://ml-analyzer:8001
-      APP_JWT_SECRET: CodeDojoAiSuperSecretKeyForJwtSigning2026
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET must be set}
       APP_JWT_EXPIRATION_SECONDS: 3600
     depends_on:
       coach-agent:
-        condition: service_started
+        condition: service_healthy
       ml-analyzer:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     ports:
       - "8080:8080"
 
@@ -41,7 +74,13 @@ services:
     container_name: web-ui
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     ports:
       - "80:80"
 
@@ -53,11 +92,11 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       ml-analyzer:
-        condition: service_started
+        condition: service_healthy
       coach-agent:
-        condition: service_started
+        condition: service_healthy
       api-gateway:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "9090:9090"
 
