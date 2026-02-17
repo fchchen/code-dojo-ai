@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { streamSubmission } from "../api/client";
 import type { AgentStep, CoachingResult } from "../types";
 
@@ -8,8 +8,14 @@ export function useCoaching() {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   async function startStream(token: string, code: string, language: string) {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+
     setSteps([]);
     setResult(null);
     setError(null);
@@ -55,14 +61,23 @@ export function useCoaching() {
           const message = envelope.data.error;
           setError(typeof message === "string" ? message : "Submission failed");
         }
-      });
+      }, controller.signal);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Streaming failed");
-      throw err;
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Streaming cancelled or timed out.");
+      } else {
+        setError(err instanceof Error ? err.message : "Streaming failed");
+      }
     } finally {
+      window.clearTimeout(timeoutId);
+      abortControllerRef.current = null;
       setIsStreaming(false);
     }
   }
 
-  return { steps, result, submissionId, isStreaming, error, startStream };
+  function cancelStream() {
+    abortControllerRef.current?.abort();
+  }
+
+  return { steps, result, submissionId, isStreaming, error, startStream, cancelStream };
 }

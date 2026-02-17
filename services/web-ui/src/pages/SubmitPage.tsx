@@ -13,7 +13,7 @@ const STARTER = `def factorial(n: int) -> int:\n    if n <= 1:\n        return 1
 export function SubmitPage({ token }: SubmitPageProps) {
   const [language, setLanguage] = useState("python");
   const [code, setCode] = useState(STARTER);
-  const { steps, result, isStreaming, error, startStream, submissionId } = useCoaching();
+  const { steps, result, isStreaming, error, startStream, cancelStream, submissionId } = useCoaching();
 
   async function handleAnalyze() {
     await startStream(token, code, language);
@@ -42,6 +42,11 @@ export function SubmitPage({ token }: SubmitPageProps) {
         <button className="btn" type="button" onClick={handleAnalyze} disabled={isStreaming}>
           {isStreaming ? "Analyzing..." : "Start Coaching"}
         </button>
+        {isStreaming ? (
+          <button className="btn secondary" type="button" onClick={cancelStream} style={{ marginLeft: "8px" }}>
+            Cancel
+          </button>
+        ) : null}
         {submissionId ? <p className="small mono">submission: {submissionId}</p> : null}
         {error ? <p className="error">{error}</p> : null}
       </div>

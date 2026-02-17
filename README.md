@@ -37,6 +37,8 @@ flowchart LR
 
 ## Local Run (Container-first)
 ```bash
+cp .env.example .env
+# update APP_JWT_SECRET in .env
 docker compose up --build
 ```
 

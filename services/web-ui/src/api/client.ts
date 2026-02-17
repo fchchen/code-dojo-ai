@@ -74,11 +74,13 @@ export async function streamSubmission(
   token: string,
   payload: SubmissionRequest,
   onEvent: (event: StreamEnvelope) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/submissions/stream`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!response.ok || !response.body) {

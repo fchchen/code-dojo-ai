@@ -13,8 +13,12 @@ export function LoginPage({ onLogin, loading, error }: LoginPageProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onLogin(username);
-    navigate("/");
+    try {
+      await onLogin(username);
+      navigate("/");
+    } catch {
+      // Error state is owned by useAuth; keep user on login page.
+    }
   }
 
   return (

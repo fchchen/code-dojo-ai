@@ -21,14 +21,14 @@ export function CoachingReport({ result }: CoachingReportProps) {
           </div>
           <strong>Issues</strong>
           <ul>
-            {result.issues.map((issue) => (
-              <li key={issue}>{issue}</li>
+            {result.issues.map((issue, index) => (
+              <li key={`issue-${index}`}>{issue}</li>
             ))}
           </ul>
           <strong>Best Practices</strong>
           <ul>
-            {result.best_practices.map((item) => (
-              <li key={item}>{item}</li>
+            {result.best_practices.map((item, index) => (
+              <li key={`practice-${index}`}>{item}</li>
             ))}
           </ul>
           <strong>Concept Explanation</strong>
